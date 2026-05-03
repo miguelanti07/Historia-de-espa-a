@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Repaso Historia de España</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; width: 100%; overflow-x: hidden; }
+  body {
+    background: #05010f;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { min-height: 100%; }
+
+  /* Animated blobs */
+  .blob-stage {
+    position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.55;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .blob-1 {
+    width: 700px; height: 700px;
+    background: radial-gradient(circle at 40% 40%, #FF2D92, #AF52DE 60%, transparent 80%);
+    top: -200px; left: -200px;
+    animation-duration: 22s;
+    opacity: 0.35;
+  }
+  .blob-2 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle at 60% 60%, #007AFF, #5856D6 60%, transparent 80%);
+    bottom: -150px; right: -150px;
+    animation-duration: 17s;
+    animation-delay: -6s;
+    opacity: 0.3;
+  }
+  .blob-3 {
+    width: 450px; height: 450px;
+    background: radial-gradient(circle at 50% 50%, #FF9500, #FF2D92 60%, transparent 80%);
+    top: 40%; left: 30%;
+    animation-duration: 25s;
+    animation-delay: -11s;
+    opacity: 0.2;
+  }
+  .blob-4 {
+    width: 350px; height: 350px;
+    background: radial-gradient(circle at 50% 50%, #5AC8FA, #007AFF 60%, transparent 80%);
+    top: 10%; right: 10%;
+    animation-duration: 20s;
+    animation-delay: -3s;
+    opacity: 0.25;
+  }
+  @keyframes drift {
+    0%   { transform: translate(0px, 0px) scale(1); }
+    33%  { transform: translate(40px, 30px) scale(1.05); }
+    66%  { transform: translate(-30px, 50px) scale(0.97); }
+    100% { transform: translate(20px, -20px) scale(1.03); }
+  }
+
+  /* Glass utilities */
+  .glass {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  .glass-strong {
+    background: rgba(255,255,255,0.11);
+    border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+  }
+  .glass-pill {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.22);
+    backdrop-filter: blur(30px) saturate(160%);
+    -webkit-backdrop-filter: blur(30px) saturate(160%);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+  /* Fade-in animation */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.35s ease forwards; }
+
+  /* Pulse ring for active card */
+  @keyframes pulseRing {
+    0%   { box-shadow: 0 0 0 0 rgba(130,80,255,0.5); }
+    70%  { box-shadow: 0 0 0 10px rgba(130,80,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(130,80,255,0); }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+/* ─── DATA ──────────────────────────────────────────── */
+const preguntas = [
+  { n: 1, titulo: "Explique brevemente las causas de la invasión musulmana y su rápida expansión en la Península.", respuesta: "La invasión musulmana en la Península Ibérica fue consecuencia de la crisis de la monarquía visigoda, marcada por la debilidad del poder político y conflictos sucesorios. El último monarca, D. Rodrigo, enfrentaba a los partidarios de su predecesor Witiza, quienes buscaron apoyo en los bereberes del norte de África. Estos cruzaron el estrecho de Gibraltar y, tras derrotar a Rodrigo en Guadalete (711), iniciaron la conquista musulmana. Su rapidez se atribuyó tanto a la expansión árabe desde Oriente como a factores internos: disputas sucesorias, crisis económica y social afectada por la pobreza y la tensión social entre la minoría latifundista y la mayoría de campesinos, y pactos con la nobleza visigoda, quienes conservaron religión y bienes a cambio de tributos." },
+  { n: 2, titulo: "Describa la evolución política de Al-Ándalus.", respuesta: "Al-Andalus comenzó con el Emirato Dependiente de Damasco, tras la invasión de Tariq en 711 y la derrota de Don Rodrigo. Al-Andalus se convirtió en un emirato bajo el Califato de Damasco, con Córdoba como capital. Surgieron conflictos entre árabes y bereberes, lo que favoreció la resistencia cristiana en el norte. En el 756, Abderramán I, de la dinastía omeya, huyó de los abasíes y proclamó la independencia política de Bagdad, fortaleciendo el poder, la islamización y la economía. Posteriormente, el Califato de Córdoba fue instaurado por Abderramán III, en el año 929, consolidando un estado fuerte y próspero. Sin embargo, tras la muerte de Almanzor y el declive político, el califato se fragmentó en los Reinos de Taifas en 1031, pequeños estados debilitados por luchas internas y la dependencia de tributos pagados a los reinos cristianos. La situación les llevó a pedir ayuda a grupos africanos primero de los almorávides y después de los almohades, quienes unificaron al-Andalus temporalmente, pero fueron derrotados en la batalla de las Navas de Tolosa en 1212. Finalmente, el Reino Nazarí de Granada, último reducto musulmán, subsistió pagando tributos a Castilla hasta su conquista por los Reyes Católicos en 1492." },
+  { n: 3, titulo: "Describa la evolución política del Califato de Córdoba.", respuesta: "El Califato de Córdoba (929-1031) comenzó con Abderramán III, quien asumió el poder en 912 y se proclamó califa en 929, aprovechando la debilidad de los abasíes. Centralizó el poder, sofocó resistencias internas, detuvo el avance cristiano, controló el norte de África y convirtió al califato en el estado más poderoso de Occidente. Durante su mandato se estableció un estado autocrático con un ejército profesional, una administración jerarquizada y un auge económico y cultural. Su hijo, Alhakam II, mantuvo esta prosperidad, pero con Hixem II el poder quedó en manos de su hayib, Almanzor. Tras la muerte de Almanzor a principios del siglo XI, comenzaron conflictos internos y guerras civiles, lo que debilitó al califato. En 1031, los notables de Córdoba disolvieron el califato, fragmentándolo en los pequeños reinos de taifas." },
+  { n: 4, titulo: "Explique brevemente qué evolución política siguió el Islam peninsular hasta los denominados Reinos de Taifas (711-1031).", respuesta: "Al-Andalus comenzó con el Emirato Dependiente de Damasco, tras la invasión de Tariq en 711 y la derrota de Don Rodrigo. Al-Andalus se convirtió en un emirato bajo el Califato de Damasco, con Córdoba como capital. Surgieron conflictos entre árabes y bereberes, lo que favoreció la resistencia cristiana en el norte. En el 756, Abderramán I, de la dinastía omeya, huyó de los abasíes y proclamó la independencia política de Bagdad, fortaleciendo el poder, la islamización y la economía. Posteriormente, el Califato de Córdoba fue instaurado por Abderramán III, en el año 929, consolidando un estado fuerte y próspero. Sin embargo, tras la muerte de Almanzor y el declive político, el califato se fragmentó en los Reinos de Taifas en 1031, pequeños estados debilitados por luchas internas y la dependencia de tributos pagados a los reinos cristianos." },
+  { n: 5, titulo: "Describa la evolución política del Emirato Dependiente de Damasco.", respuesta: "Con el fin de ayudar a Witiza, Tariq y su ejército cruzaron el Estrecho de Gibraltar y derrotaron al rey visigodo Don Rodrigo en la batalla de Guadalete, iniciando la conquista musulmana de la Península. Muchos nobles visigodos aceptaron la sumisión y el pago de tributos a cambio de conservar sus propiedades. Al-Andalus se convirtió en un Emirato Dependiente de Damasco, con Córdoba como capital. Sin embargo, hubo conflictos internos entre árabes y bereberes por el reparto de tierras y la organización de la conquista, lo que favoreció la resistencia cristiana en las montañas asturianas." },
+  { n: 6, titulo: "Describa la evolución política del Emirato Independiente de Bagdad.", respuesta: "El Emirato Independiente (756-929) surgió tras el cambio de dinastía en el Califato, donde los abasíes reemplazaron a los omeyas. Abderramán I, único superviviente de la familia omeya, huyó a la península y estableció un emirato independiente en Al-Andalus, rompiendo lazos políticos con Bagdad, aunque mantuvo la dependencia religiosa. Durante su gobierno, se incrementó la recaudación de impuestos, se organizó un cuerpo de funcionarios, se formó un ejército mercenario y se impulsó una rápida islamización del territorio." },
+  { n: 7, titulo: "Describa brevemente la evolución de los primeros reinos taifas.", respuesta: "Los Reinos de Taifas (1031-1090) surgieron tras la disolución del Califato de Córdoba, fragmentando al-Andalus en pequeños reinos independientes. Estos reinos competían entre sí, intentando expandirse a costa de sus vecinos. Frecuentemente, las taifas buscaron el apoyo de los reyes cristianos, quienes les exigían tributos (parias) a cambio de paz o asistencia militar. Este sistema fortaleció a los reinos cristianos, permitiéndoles avanzar hacia el sur, como con la conquista de Toledo por Alfonso VI en 1085. Ante la creciente amenaza cristiana, los taifas solicitaron ayuda a los almorávides del norte de África." },
+  { n: 8, titulo: "Describa brevemente la evolución del imperio almorávide y almohade.", respuesta: "Tras vencer a Alfonso VI en la batalla de Zalaca, los almorávides unificaron al-Andalus, frenando temporalmente el avance cristiano. Sin embargo, la presión cristiana continuó, y hacia mediados del siglo XII, Al-Andalus se fragmentó nuevamente en los segundos reinos de taifas. Las tensiones presentes llevaron a los taifas a pedir ayuda a los almohades quienes tomaron el control, instaurando un mayor rigor religioso. Lograron frenar a los cristianos y vencieron a Alfonso VIII en la batalla de Alarcos (1195). No obstante, fueron derrotados en la batalla de las Navas de Tolosa (1212), lo que debilitó su dominio y dio lugar a las terceras taifas independientes, como Sevilla, Valencia y Murcia, de las cuales solo Granada resistiría más tiempo." },
+  { n: 9, titulo: "Describa la evolución política de las Segundas Taifas.", respuesta: "Tras vencer a Alfonso VI en la batalla de Zalaca, los almorávides unificaron al-Andalus, frenando temporalmente el avance cristiano. Sin embargo, la presión cristiana continuó, y hacia mediados del siglo XII, Al-Andalus se fragmentó nuevamente en los segundos reinos de taifas." },
+  { n: 10, titulo: "Describa la evolución política de las Terceras Taifas.", respuesta: "Las tensiones presentes en las Segundas Taifas le llevaron a pedir ayuda a los almohades quienes tomaron el control, instaurando un mayor rigor religioso. Lograron frenar a los cristianos y vencieron a Alfonso VIII en la batalla de Alarcos (1195). No obstante, fueron derrotados en la batalla de las Navas de Tolosa (1212), lo que debilitó su dominio y dio lugar a las terceras taifas independientes, como Sevilla, Valencia y Murcia, de las cuales solo Granada resistiría más tiempo." },
+  { n: 11, titulo: "Describa brevemente la evolución del reino nazarí de Granada.", respuesta: "Ya para 1236, las Terceras Taifas habían quedado reducidas al Reino Nazarí de Granada, que abarcaba las actuales provincias de Granada, Málaga y Almería. Subsistió hasta su conquista por los Reyes Católicos en 1492, pagando tributos a Castilla. Su economía fue próspera gracias al comercio con el mundo musulmán, una agricultura productiva y una destacada actividad artesanal, que le proporcionaron ingresos para mantener la paz. Sobrevivió también por sus defensas septentrionales, una red de castillos, un ejército eficaz y las divisiones en el bando cristiano. Además, su extensa franja costera favorecía los intercambios comerciales entre el norte de África y Europa, reforzando su posición estratégica y económica." },
+  { n: 12, titulo: "Resuma los cambios económicos, sociales y culturales introducidos por los musulmanes en Al-Ándalus.", respuesta: "En el ámbito cultural hay que destacar el amplio patrimonio monumental, con monumentos tan destacados como la Mezquita de Córdoba y la Alhambra de Granada y con una gran influencia en periodos posteriores con los estilos mudéjar y neomudéjar. Desarrollaron las ciudades e introdujeron aportaciones en el idioma castellano y elementos de la vida cotidiana como la gastronomía, las bibliotecas, los baños públicos, instrumentos musicales y juegos. En el terreno económico, hay que destacar sobre todo su incidencia en la agricultura, con el desarrollo de las técnicas de regadío y la introducción de nuevos cultivos como el arroz, los cítricos y determinadas frutas y verduras como la berenjena, las espinacas o la alcachofa." },
+  { n: 13, titulo: "Explique los rasgos principales de la sociedad hispano-musulmana.", respuesta: "Tras la conquista, la sociedad musulmana quedó dividida, sobre todo, por criterios religiosos. Por una parte estaba la población musulmana, dentro de la cual se distinguían grupos de distinto nivel social y económico: Los invasores árabes, que ocuparon las mejores tierras y mantuvieron una posición preeminente (se consideraban superiores porque provenían de la patria del profeta Mahoma), los bereberes, que habitualmente se asentaron como ganaderos en la Meseta donde practicaron una ganadería nómada. A pesar de ser el grupo mayoritario de población musulmana, dado que su conversión fue más tardía son considerados musulmanes de segunda categoría; los muladíes o hispanovisigodos convertidos al Islam, que se convirtieron con el tiempo en el grupo más numeroso y predominante en Al-Ándalus.\n\nPor otra parte estaban los no musulmanes (dimníes), tolerados por practicar también una religión monoteísta: la población hispanorromana de religión cristiana (los denominados mozárabes) que era el grupo más numeroso, aunque su número fue decreciendo debido a las conversiones al Islam; y los judíos, minoría social y económicamente destacada." },
+  { n: 14, titulo: "Indique los tipos de gobernantes que hubo en Al-Ándalus.", respuesta: "En Al Ándalus hubo emires (dependientes e independientes), califas durante el Califato de Córdoba, reyes de taifas y posteriormente gobernantes bereberes como los almorávides y almohades. Finalmente, el reino nazarí de Granada tuvo sus propios sultanes." },
+  { n: 15, titulo: "Defina brevemente el concepto de Reconquista.", respuesta: "La \"Reconquista\" es el proceso, desarrollado entre los siglo VIII y XV, por el cual los reinos cristianos del norte de la Península van expandiéndose hacia el sur a costa de Al Ándalus. El concepto fue definido por Alfonso II de Asturias (791-842) que justificó la expansión autoproclamándose heredero de la monarquía visigoda. Aunque recientemente ha sido cuestionado por la historiografía ya que hay quién defiende la idea de que en realidad se trató una conquista ya que no se puede considerar que fueron los visigodos los que conquistaron los territorios a los musulmanes." },
+  { n: 16, titulo: "Describa cuáles son las grandes etapas de la reconquista.", respuesta: "Primera etapa (siglos VIII-X): Comenzó con la victoria cristiana en Covadonga (722). Los núcleos del norte consolidaron su territorio, avanzando hacia el sur. El reino de Asturias alcanzó el río Duero en 910, momento en que el centro político se trasladó a León.\n\nSegunda etapa (siglos XI y primera mitad del XII): La disgregación del Califato de Córdoba permitió a los reinos cristianos cruzar la cordillera Central y ocupar la cuenca del Tajo, reconquistando Toledo (1085). El avance fue interrumpido por los almorávides, pero se reactivó en el este con la toma de Zaragoza (1118) por Alfonso I de Aragón y de Lisboa (1147) por Alfonso I de Portugal.\n\nTercera etapa (fines del XII y principios del XIII): Los almohades frenaron temporalmente el avance cristiano, pero Castilla y León lograron controlar los valles del Guadiana y Sierra Morena. La victoria en Las Navas de Tolosa (1212) abrió el camino hacia el valle del Guadalquivir y Valencia.\n\nCuarta etapa (siglos XIII-XV): Fernando III ocupó el valle del Guadalquivir (Córdoba, Sevilla), y Jaime I conquistó Valencia y las Baleares. La península quedó dividida en cuatro reinos cristianos (Castilla, Aragón, Navarra, Portugal) y un reino musulmán (Granada), que resistió hasta 1492, cuando se rindió a los Reyes Católicos." },
+  { n: 17, titulo: "Explica brevemente como se formó el reino astur–leonés. ¿Por qué pasó a denominarse posteriormente reino de León?", respuesta: "Un sucesor de Pelayo, Alfonso (739-757), se proclamó rey, creando el primer reino cristiano, llamado el Reino de Asturias y considerándose legítimos sucesores de la monarquía visigoda. Alfonso II puso la capital en Oviedo. En la segunda mitad del siglo IX Alfonso III aprovechó la debilidad de los emires de Córdoba y ocupó el territorio que llegaba hasta el valle del Duero, una zona despoblada. Para controlar mejor las nuevas tierras la capital se trasladó a León, con lo que el reino pasó a llamarse Reino de León." },
+  { n: 18, titulo: "Explique para qué se creó el condado de Castilla.", respuesta: "Para defender el este de la Meseta se creó el condado de Castilla, gobernados por Condes nombrados por el Rey de León. Uno de ellos, Fernán González, aprovechó la falta de autoridad y se proclamó independiente en el año 1065." },
+  { n: 19, titulo: "Explica brevemente como se formaron los estados pirenaicos (Aragón, Navarra y los condados catalanes).", respuesta: "En los Pirineos, el emperador franco Carlomagno, buscando proteger su territorio de los musulmanes, estableció una franja fortificada al sur de los Pirineos, la Marca Hispánica, que fue dividida en condados y gobernada por Condes dependientes del emperador. A principios del siglo IX los navarros y los aragoneses se independizaron de los francos. El dominio carolingio en tierras catalanas fue más duradero. Hacia el año 897 el conde Wifredo el Velloso convirtió sus cargos en hereditarios y, hacia finales del siglo X, se negaron a renovar el juramento de fidelidad al rey franco. De este modo nacieron los condados catalanes, de los cuales destacó el de Barcelona." },
+  { n: 20, titulo: "Explique por qué llegó al trono de Castilla la dinastía Trastámara.", respuesta: "En Castilla, la alta nobleza, encabezando grandes señoríos, comenzó a desafiar la autoridad del rey. Pedro I (1350-1369), hijo de Alfonso XI, defendió firmemente el poder monárquico, lo que le enfrentó a la nobleza, que apoyó a su hermanastro Enrique de Trastámara. Esta rivalidad provocó una guerra civil (1366-1369), en la que Pedro I fue derrotado y asesinado en Montiel por Enrique, quien asumió el trono como Enrique II (1369-1379). Este hecho marcó el inicio de la dinastía Trastámara. Enrique II recompensó con privilegios y riquezas a la nobleza que lo respaldó en el conflicto." },
+  { n: 21, titulo: "Defina brevemente el concepto de Repoblación.", respuesta: "La repoblación es la ocupación y colonización de las tierras arrebatadas a los musulmanes en el proceso de reconquista. Existían cuatro tipos: La repoblación libre (campesinos y mozárabes colonizaron tierras del valle del Duero y sur de los Pirineos con propiedad otorgada por los reyes), la repoblación concejil (tierras organizadas en concejos con privilegios reales), la repoblación por órdenes militares (latifundios concedidos a órdenes militares para proteger y poblar zonas fronterizas) y los repartimientos (grandes latifundios entregados a nobles, clérigos y órdenes, con predominio de siervos y jornaleros debido a la falta de colonos)." },
+  { n: 22, titulo: "Explique brevemente el ámbito territorial y carácter de cada sistema de repoblación, así como sus causas y consecuencias.", respuesta: "Durante los siglos X y XI, la repoblación libre se centró en las tierras del valle del Duero y al sur de los Pirineos, donde campesinos y mozárabes que huían de Al-Ándalus recibieron propiedades otorgadas por los monarcas, predominando pequeños campesinos libres. Entre los siglos XI y XII, la repoblación concejil se organizó colectivamente en los valles del Tajo y del Ebro, con la creación de municipios dotados de privilegios reales como fueros y tierras comunales, lo que favoreció la propiedad libre. En los siglos XII y XIII, las órdenes militares recibieron grandes latifundios en las zonas fronterizas del sur del Tajo para repoblar y proteger estas áreas. A partir del siglo XIII, el sistema de repartimientos distribuyó extensos latifundios a nobles, clérigos y órdenes militares, generando una estructura social dominada por siervos y jornaleros debido a la falta de colonos." },
+  { n: 23, titulo: "Explique el origen de las Cortes en los reinos cristianos y sus principales funciones.", respuesta: "Las Cortes eran asambleas que reunían a los estamentos nobiliario, eclesiástico y ciudadano junto al rey, surgidas con el auge de las ciudades y la burguesía. En la Corona de Castilla, las primeras cortes fueron las de León (1188) y luego Castilla, con un carácter consultivo y de aprobación de subsidios. En la Corona de Aragón, cada reino tenía sus propias cortes con funciones legislativas y fiscales, destacando la Generalitat en Cataluña como órgano permanente desde el siglo XIV. En Navarra, las Cortes surgieron en 1253, donde el monarca debía respetar los fueros y tradiciones locales." },
+  { n: 24, titulo: "Compara la forma de administración local de las coronas de Castilla y Aragón.", respuesta: "En la Corona de Castilla, la monarquía era autoritaria, con amplios poderes para declarar guerras, legislar y administrar justicia, apoyada por la Curia Regia y unas Cortes que incluyeron representantes urbanos desde 1188, pero que con el tiempo se limitaron a funciones menores como la aprobación de impuestos. En la Corona de Aragón, prevalecía el pactismo en una confederación de reinos con instituciones propias; el rey debía respetar las leyes y costumbres locales, y las Cortes mantenían importantes competencias legislativas." },
+  { n: 25, titulo: "Compare la organización política de la Corona de Castilla, la Corona de Aragón y el Reino de Navarra al final de la Edad Media.", respuesta: "En la Corona de Castilla, la monarquía era autoritaria, con amplios poderes para legislar, declarar la guerra y administrar justicia, apoyada por la Curia Regia y unas Cortes que desde 1188 incluyeron a representantes urbanos, pero que con el tiempo se limitaron a aprobar impuestos y jurar al heredero. En la Corona de Aragón, predominaba el pactismo, con una confederación de reinos que mantenían leyes e instituciones propias, mientras las Cortes conservaban competencias legislativas. En Navarra también predominó el pactismo, con unas Cortes que limitaban el poder del monarca y una organización estatal que mezclaba elementos castellanos y aragoneses." },
+  { n: 26, titulo: "Explique las características del régimen señorial y la sociedad estamental en el ámbito cristiano.", respuesta: "Entre los siglos VIII y XIII, la sociedad hispana se dividía en tres estamentos: nobleza (protectores), clero (orantes) y campesinado (productores), este último compuesto por campesinos libres y siervos. Desde el siglo XI, surgió la burguesía urbana formada por artesanos, comerciantes y banqueros. Nobleza y clero gozaban de privilegios, mientras campesinado y burguesía carecían de ellos. También convivían minorías étnico-religiosas (judíos, mozárabes, mudéjares), destacando la Escuela de Traductores de Toledo como ejemplo de interacción cultural. El régimen señorial, basado en el dominio de tierras y habitantes por nobles o clérigos, se consolidó en la Baja Edad Media con medidas como las Leyes de Toro (1480)." },
+  { n: 27, titulo: "Describe brevemente la evolución económica de los reinos cristianos durante la Edad Media.", respuesta: "Inicialmente, los reinos cristianos de la península ibérica tenían una economía aislada, basada en la agricultura y con poco comercio. Sin embargo, entre los siglos XI y XIV, experimentaron un notable crecimiento económico, con la incorporación de tierras fértiles y mejoras en los sistemas de cultivo. En Castilla, la ganadería ovina, especialmente la de la oveja merina, destacó por su lana de alta calidad, exportada a Flandes, organizada por el Honrado Concejo de la Mesta. La trashumancia se realizaba por cañadas específicas. El resurgir de las ciudades promovió el comercio y la burguesía, y el Camino de Santiago facilitó el intercambio económico, con mercados y ferias como la de Medina del Campo. En la Corona de Aragón, la economía combinaba la agricultura de regadío y la ganadería, y su comercio marítimo floreció en el Mediterráneo, con puertos clave como Barcelona, Valencia y Palma. Exportaban productos como tejidos, aceite y armas, e importaban especias, seda y trigo, protegiendo a sus comerciantes con los Consulados del Mar." },
+  { n: 28, titulo: "Describa brevemente en qué consistía el Real Concejo de la Mesta.", respuesta: "El Honrado Concejo de la Mesta, fundado en 1273 por Alfonso X, era una asociación de ganaderos trashumantes que obtuvo grandes privilegios, como leyes y tribunales propios, favoreciendo los intereses ganaderos sobre los agrarios. Se organizaba en cuadrillas con centros en Cuenca, Segovia, Soria y León, y tenía acceso a numerosas cañadas, que eran vías de paso para el ganado entre el norte y el sur de Castilla. Se centró en la cría de ganado ovino, especialmente la oveja merina, cuya lana se exportaba desde los puertos del Cantábrico hacia Europa. Este lucrativo comercio, gestionado desde Burgos y Medina del Campo, le otorgó gran influencia y privilegios." },
+  { n: 29, titulo: "Explique brevemente la crisis de la Baja Edad Media (siglo XIV).", respuesta: "Entre los siglos XIV y XV, la peste negra (1348) marcó el inicio de una crisis en Europa y en los reinos cristianos peninsulares, agravada por malas cosechas previas que debilitaron a la población. En la Corona de Aragón, especialmente en Cataluña, la población cayó un 40%, afectando la producción agrícola y reduciendo las rentas señoriales. Los nobles reaccionaron expandiendo dominios y endureciendo las condiciones para los campesinos, con nuevos impuestos (malos usos). Esto desencadenó revueltas campesinas, como la de los payeses de remensa en Cataluña y los irmandiños en Galicia. En las ciudades, la escasez y la inflación llevaron a disturbios urbanos y ataques a juderías (pogromos). Además, surgieron tensiones políticas entre la monarquía, que buscaba consolidar su autoridad, y las clases privilegiadas, que se resistían." },
+  { n: 30, titulo: "Describa brevemente la importancia de la Escuela de Traductores de Toledo.", respuesta: "Durante la Edad Media, España se destacó por su superioridad cultural, técnica y científica en comparación con Europa, gracias a la colaboración entre sabios cristianos, musulmanes y judíos. Este intercambio intelectual se plasmó especialmente en las escuelas de traducción, como la de Toledo, fundada por Alfonso X el Sabio. En Toledo, los estudiosos tradujeron textos clásicos y orientales al latín y al castellano, preservando y difundiendo el saber griego, latino, árabe y hebreo en Europa. La convivencia de comunidades judías y musulmanas tras la conquista de la ciudad en 1085 facilitó este proceso, que impulsó un renacimiento filosófico, teológico y científico que benefició al Occidente cristiano y preparó el camino para el Renacimiento." },
+  { n: 31, titulo: "Explique en qué consistió el Renacimiento Urbano y las consecuencias que este proceso tuvo para la sociedad bajomedieval.", respuesta: "A partir del siglo XI, y a raíz del \"renacimiento urbano\" que tuvo lugar en toda Europa, surgió y se consolidó en los reinos cristianos un nuevo grupo social, el de la Burguesía, constituida por artesanos, comerciantes y banqueros que residían en las principales ciudades de los reinos (burgos). Nobleza y clero fueron estamentos privilegiados en la medida en que estaban eximidos del pago de impuestos y se acogían a leyes especiales. El campesinado y la burguesía conformaban, en cambio, el grupo de los no privilegiados, así que estaban obligados a pagar tributos y no se regían por las mismas leyes que los privilegiados, dando lugar a numerosas revueltas." },
+  { n: 32, titulo: "Describa la sociedad bajomedieval hispánica.", respuesta: "La sociedad queda dividida en los tres estamentos clásicos: la Nobleza, encargados de proteger el reino; el Clero, cuyo cometido era rezar para salvar las almas de los habitantes del reino; y el Campesinado, responsables de producir todo lo necesario para mantener a la población. Dentro del campesinado hubo dos grupos bien diferenciados: el de los campesinos libres, pertenecientes normalmente al realengo (tierras del rey), y el de los siervos, que vivían y trabajaban en los señoríos y cuyas condiciones de vida eran mucho más duras que la de los campesinos libres." },
+  { n: 33, titulo: "Explique el mapa político de la Península Ibérica antes y después del reinado de los Reyes Católicos.", respuesta: "Antes del reinado de los Reyes Católicos, la Península Ibérica estaba dividida en cinco reinos: Castilla, Aragón, Navarra, Portugal y el reino nazarí de Granada. Castilla y Aragón eran los territorios más extensos y poderosos, mientras que Granada era el último bastión musulmán. Tras el matrimonio de Isabel y Fernando en 1469, se produjo la unión dinástica de Castilla y Aragón. Con la conquista de Granada en 1492 y la anexión de Navarra en 1512, lograron una gran unificación territorial. Sin embargo, cada reino mantuvo sus leyes e instituciones propias." },
+  { n: 34, titulo: "Defina el concepto de \"unión dinástica\" aplicado a Castilla y Aragón en tiempos de los Reyes Católicos.", respuesta: "La unión dinástica entre Castilla y Aragón surgió del matrimonio entre Isabel I y Fernando II en 1469. No implicó la fusión de los territorios, ya que cada reino mantuvo sus leyes, instituciones, monedas y sistemas fiscales. Los monarcas actuaron de forma conjunta en política exterior y en proyectos de interés común, como la unidad territorial y religiosa. Esta unión fue principalmente personal, centrada en la figura de los Reyes Católicos." },
+  { n: 35, titulo: "Explica brevemente el conflicto sucesorio de Isabel la Católica.", respuesta: "Al contraer matrimonio Isabel con el heredero de la Corona de Aragón, Fernando, sin previa consulta al rey de Castilla, Enrique IV desheredó a Isabel y proclamó sucesora a su hija Juana (1470). El conflicto entre los partidarios de doña Juana y los de Isabel quedó abierto. La consiguiente guerra de sucesión tendrá un doble carácter: de guerra civil y de guerra internacional. Al lado de Juana se sitúa Portugal y Francia, interesada en debilitar a Castilla; con Isabel, estaba Aragón. La batalla de Toro (1476) fue decisiva. El éxito se inclinó definitivamente a favor de Isabel y Fernando, firmándose con Portugal el tratado de Alcaçovas (1479) por el que Isabel era reconocida como reina; también se resolvía la pugna que se venía manteniendo con Portugal sobre la navegación por las costas africanas." },
+  { n: 36, titulo: "Explica brevemente las características de la monarquía autoritaria. / Describa las características del nuevo Estado creado por los Reyes Católicos.", respuesta: "La monarquía autoritaria de los Reyes Católicos consolidó el poder real frente a la nobleza mediante varias medidas. Crearon un ejército permanente con soldados profesionales organizados en tercios, impulsaron una diplomacia activa mediante embajadores y matrimonios estratégicos, y establecieron una burocracia eficiente con cargos como virreyes y gobernadores para administrar los territorios. En la Corona de Castilla, fortalecieron el Consejo Real, redujeron el protagonismo de las Cortes y crearon tribunales como las Chancillerías. En la Corona de Aragón, mantuvieron las instituciones tradicionales, pero con mayor presencia de la autoridad real y crearon el cargo de virrey. A nivel común, crearon la Inquisición y la Santa Hermandad para asegurar el control religioso y el orden público. Los Reyes Católicos no establecieron una capital fija, sino que se desplazaron para ejercer su autoridad y consolidar la unidad de sus reinos." },
+  { n: 37, titulo: "Explique brevemente la expansión territorial realizada por los Reyes Católicos.", respuesta: "La expansión territorial de la monarquía hispánica bajo los Reyes Católicos tuvo tres objetivos principales: la Península, el Mediterráneo y el Atlántico. En la Península, finalizaron la Reconquista con la incorporación del reino nazarí de Granada (1492) y de Navarra en 1512, aunque esta última conservó sus fueros. En el Mediterráneo, conquistaron territorios en el norte de África como el Peñón de la Gomera, Orán y Melilla (1497), y lograron la incorporación del reino de Nápoles a la Corona aragonesa en 1503, además de los territorios del Rosellón y la Cerdaña. En el Atlántico, culminaron la conquista de las Islas Canarias, iniciando también la expansión hacia América tras el viaje de Colón en 1492. Además, su política matrimonial, como el enlace de su hija Juana con Felipe el Hermoso, consolidó alianzas que fortalecieron los intereses territoriales de España." },
+  { n: 38, titulo: "Explique brevemente la política exterior del reinado de los Reyes Católicos.", respuesta: "Los Reyes Católicos centraron su política exterior en expandir territorios y enfrentarse a Francia por el control de Italia y la hegemonía europea. Sus estrategias incluyeron matrimonios estratégicos: Juana con Felipe de Habsburgo, Catalina con Enrique VIII, y María e Isabel con Manuel el Afortunado, buscando rodear a Francia. Como resultado, su nieto, Carlos I, heredó un vasto imperio. También destacaron por la diplomacia y conquistas, recuperando el Rosellón y Cerdaña, consolidando Nápoles, incorporando Navarra a Castilla en 1512, y apoyando la conquista de las Canarias. Además, financiaron el viaje de Colón y realizaron conquistas en África para frenar el avance musulmán, consolidando a España como potencia emergente." },
+  { n: 39, titulo: "Explique brevemente la política de expansión hacia el Atlántico y de control del norte de África por parte de los Reyes Católicos.", respuesta: "La expansión territorial de la monarquía hispánica se centró en tres grandes áreas: la Península, el Mediterráneo y el Atlántico. En el Mediterráneo, se conquistaron enclaves en el norte de África como el Peñón de la Gomera, Orán, Bugía, Trípoli y Melilla (1497), y se ocupó el Reino de Nápoles, tras vencer a los franceses, incorporándolo a la Corona aragonesa en 1503. También se recuperaron los territorios del Rosellón y la Cerdaña gracias a la diplomacia de Fernando. En el Atlántico, se completó la conquista de las Canarias, incluyendo Tenerife, y se financió la expedición de Colón, que culminó con el descubrimiento de América en 1492." },
+  { n: 40, titulo: "Explique las causas y consecuencias de los hechos más relevantes de 1492.", respuesta: "Los avances técnicos en navegación y la necesidad de expansión atlántica tras la caída de Constantinopla (1453) impulsaron a Portugal y España a protagonizar la expansión atlántica, lo que llevó a la formación del imperio colonial americano. Portugal se centró en circunnavegar África, mientras que la Corona de Castilla, siguiendo la propuesta de Cristóbal Colón, intentó alcanzar Asia navegando hacia el oeste. Colón zarpó el 3 de agosto de 1492 y, el 12 de octubre, llegó a la isla de Guanahaní, creyendo haber llegado a Asia. Los Reyes Católicos obtuvieron los derechos de conquista y evangelización de las nuevas tierras mediante la bula papal Inter Caetera (1493), que establecía una línea de demarcación entre las zonas de expansión de Portugal y España. En 1494, el Tratado de Tordesillas movió la línea de demarcación, dejando Brasil en el área portuguesa." },
+  { n: 41, titulo: "Describa la situación del reino nazarí de Granada a finales del siglo XV.", respuesta: "A finales del siglo XV, el reino nazarí de Granada era el último reducto musulmán en la Península. Aunque rico en agricultura y comercio, estaba debilitado por conflictos internos y dependía de tributos a Castilla. Su posición estratégica y el interés de los Reyes Católicos en completar la Reconquista llevaron a su asedio y conquista en 1492." },
+  { n: 42, titulo: "Explique las causas y consecuencias de la toma de Granada.", respuesta: "Las causas de la toma de Granada incluyen el deseo de los Reyes Católicos de culminar la Reconquista, reforzar la unidad territorial y consolidar su poder frente al Islam. La conquista en 1492 tuvo consecuencias como la desaparición del último reino musulmán en la Península, la integración de Granada en Castilla y el inicio de la persecución de la población musulmana, marcando la unidad política y religiosa de España." },
+  { n: 43, titulo: "Describa brevemente por qué es importante en el mundo la toma de Granada.", respuesta: "Este acontecimiento, que supone el fin de la \"Reconquista\", es importante a nivel mundial porque permitió a Castilla el inicio de la expansión a América y, por otro, porque compensaba la conquista otomana de Constantinopla en 1453, sirviendo de acicate a la Europa cristiana para frenar su expansión en Europa." },
+  { n: 44, titulo: "El reinado de los Reyes Católicos: Explica las causas y consecuencias de expulsión de los judíos.", respuesta: "Los Reyes Católicos buscaron la uniformidad religiosa para unificar a sus reinos, enfrentándose a los judíos y musulmanes. Muchos judíos se habían convertido al cristianismo, pero se sospechaba que seguían practicando su fe en secreto, siendo llamados \"marranos\". Para detectar a los conversos que \"judaizaban\", crearon el Tribunal de la Inquisición en 1478, autorizado por el papa Sixto IV. En 1480 se nombraron los primeros inquisidores, y fray Tomás de Torquemada fue designado Inquisidor General en 1483. Inicialmente centrada en los conversos, la Inquisición luego amplió su alcance a otras formas de heterodoxia. En 1492, Isabel decretó la expulsión de todos los judíos que no se convirtieran al cristianismo, buscando resolver el problema de los judaizantes." },
+  { n: 45, titulo: "El reinado de los Reyes Católicos: la expulsión de los mudéjares.", respuesta: "En cuanto a los musulmanes, con la ocupación cristiana de Granada su población (ahora mudéjares) era respetada, de acuerdo con la capitulación, en su religión, leyes, libertades y bienes. El cardenal Cisneros no compartía estas medidas de tolerancia y ordenó el cierre de mezquitas y la destrucción de ejemplares del Corán. Estas medidas dieron lugar a una rebelión de los mudéjares granadinos (1500). Los Reyes Católicos declararon nulas las capitulaciones y dieron a elegir a los vencidos entre el bautismo o la emigración (1501). La mayor parte optó por la primera vía para no tener que abandonar Granada." },
+  { n: 46, titulo: "Explique brevemente la política de unidad religiosa de los Reyes Católicos.", respuesta: "La política religiosa de los Reyes Católicos estuvo centrada en lograr la unidad religiosa del Estado, eliminando a las minorías religiosas presentes en sus territorios. En 1492, se decretó la expulsión de los judíos, obligándolos a convertirse al cristianismo o abandonar España, lo que tuvo un grave impacto demográfico y económico. En 1502, se forzó a los mudéjares en Granada a convertirse al cristianismo, y aquellos que lo hicieron fueron llamados moriscos. Además, en 1478 se estableció el Tribunal del Santo Oficio de la Inquisición, cuya misión era vigilar y perseguir desviaciones religiosas, especialmente entre los conversos judaizantes. La Inquisición llevó a cabo celebraciones de Autos de Fe, donde los condenados eran quemados en la hoguera, y vigilaba diversas formas de herejía, brujería, blasfemia, homosexualidad y sodomía. Esta institución se consolidó como una herramienta para mantener la ortodoxia católica y fortalecer la autoridad del Estado." },
+  { n: 47, titulo: "Explique brevemente la política de unidad religiosa realizada por los Reyes Católicos y la dinastía de los Austrias.", respuesta: "Los Reyes Católicos implementaron una política de unidad religiosa para consolidar su poder real, creyendo que la lealtad de los súbditos solo estaría asegurada si compartían la misma fe que los monarcas. Como parte de esta estrategia, en 1492 se decretó la conversión o exilio de los judíos, y entre 1500 y 1502, se forzó la conversión o el exilio de los mudéjares en los reinos de Granada y Castilla. Además, se creó el Tribunal de la Inquisición para vigilar falsas conversiones y cualquier desvío de la fe católica. Esta política se intensificó en los reinados posteriores, especialmente frente a las reformas protestantes, llevando a las guerras de religión y a la división del Imperio tras la abdicación de Carlos V en favor de su hermano Fernando. En la Península, se produjo la conversión o exilio de los mudéjares de la Corona de Aragón en 1525, la expulsión de los moriscos de Granada tras su rebelión en las Alpujarras en 1570, y la definitiva expulsión de los moriscos de toda la monarquía en 1609, bajo Felipe III." },
+  { n: 48, titulo: "Explique en qué consistió el Tratado de Tordesillas.", respuesta: "Tras la firma del Tratado de Tordesillas (1494) entre Castilla y Portugal se delimitaron las áreas de influencia de cada país y comienza la exploración y conquista del territorio explorándose el Caribe y las Antillas. Se acordó desplazar el meridiano de demarcación 370 leguas al oeste de las islas de Cabo Verde." },
+  { n: 49, titulo: "Describa los viajes de Colón y los \"Viajes Menores\".", respuesta: "El 3 de agosto de 1492 Colón y sus hombres partieron del puerto de Palos (Huelva). El 12 de octubre de 1492 llegaron a la isla de Guanahaní (San Salvador). Colón estaba convencido de que había llegado a tierras próximas a Asia y nunca tuvo conciencia clara de haber descubierto un nuevo continente. Colón realizó cuatro viajes entre 1492 y 1504, explorando el Caribe y estableciendo los primeros asentamientos en América. Los \"Viajes Menores\" se refieren a expediciones posteriores realizadas por otros exploradores como Juan de la Cosa o Américo Vespucio, que ampliaron el conocimiento geográfico y confirmaron la existencia de un nuevo continente." },
+  { n: 50, titulo: "El reinado de los Reyes Católicos: la anexión de Navarra.", respuesta: "En 1512, Fernando el Católico incorporó el reino de Navarra a la Corona de Castilla tras una campaña militar contra sus gobernantes, aliados de Francia. Aunque Navarra mantuvo cierta autonomía con sus fueros y leyes, esta anexión consolidó la unidad territorial de la Península, excepto Portugal, bajo el control de los Reyes Católicos." },
+  { n: 51, titulo: "Explique brevemente qué sucedió a la muerte de Isabel la Católica.", respuesta: "En 1504, falleció la reina Isabel en Medina del Campo, dejando a su hija Juana como heredera en su testamento, con la condición de que, si Juana no pudiera reinar, su marido, Felipe de Austria, sería regente hasta que su hijo Carlos alcanzara los veinte años. En abril de 1506, Felipe y Juana llegaron a Castilla, y Fernando abandonó la regencia para dirigirse a Aragón y luego a Nápoles. Sin embargo, tras la muerte de Felipe en septiembre de 1506, Juana, ya afectada por trastornos mentales, vio empeorar su estado. Fernando regresó para asumir la regencia nuevamente. Durante esta segunda etapa, Fernando se centró en la política exterior, logrando la anexión de Navarra y ocupando plazas en el norte de África. En 1516, al morir Fernando, dejó como regentes a Cardenal Cisneros en Castilla y Alfonso de Aragón en Aragón hasta la llegada de su nieto, Carlos de Habsburgo. Carlos, con 17 años, llegó a Villaviciosa en octubre de 1517, pero Cisneros falleció en noviembre sin haber podido reunirse con él." },
+  { n: 52, titulo: "Describa brevemente en qué territorios se asentaba la monarquía española en el reinado de Carlos I y que pasó a la muerte del emperador.", respuesta: "Carlos I heredó un vasto imperio gracias a la política matrimonial de los Reyes Católicos. De su abuelo materno, Fernando el Católico, recibió la Corona de Aragón (Aragón, Cataluña, Valencia, Mallorca), los territorios italianos de Cerdeña, Sicilia, Nápoles, el Rosellón y los Ducados de Atenas y Neopatria. De su abuela materna, Isabel la Católica, recibió la Corona de Castilla (incluyendo Castilla, León, Galicia, Murcia, Andalucía y Granada), los presidios en el norte de África, las Islas Canarias, las colonias americanas y el Reino de Navarra. Estos territorios se ampliaron con las conquistas de Milán y los imperios azteca e inca en América. De su abuelo paterno, Maximiliano de Austria, heredó el Archiducado de Austria y su candidatura al Sacro Imperio Romano Germánico, y de su abuela paterna, María de Borgoña, recibió el Ducado de Borgoña, Flandes, el Franco Condado, Luxemburgo y Artois. Al abdicar en 1556, Carlos I dividió su herencia entre su hijo Felipe II, quien recibió los territorios castellanos, aragoneses y borgoñones, y su hermano Fernando, quien heredó Austria y la Corona Imperial." },
+  { n: 53, titulo: "Explique brevemente las características de la hegemonía española en el mundo (Reinados de Carlos I y Felipe II).", respuesta: "Durante el siglo XVI la Monarquía Hispánica se convierte en la potencia hegemónica mundial gracias a su gran extensión territorial, producto de la gran herencia patrimonial de Carlos I, y a su gran capacidad financiera debido a los metales preciosos procedentes de las colonias americanas. La política imperial de ambos reyes estuvo unida a la defensa del catolicismo como principio ideológico, concretado en la época de Carlos I en la idea de \"Universitas Christiana\" y en el de Felipe II en los preceptos de la Contrarreforma. Esto les hizo enfrentarse a los países protestantes, especialmente los príncipes alemanes, Inglaterra y Holanda, y con la gran potencia musulmana, el Imperio Otomano. El otro gran enemigo de la monarquía fue Francia. Finalmente, la Monarquía no pudo soportar este enorme esfuerzo, provocando la bancarrota de la monarquía y su entrada en crisis en el siglo XVII." },
+  { n: 54, titulo: "Explique brevemente las características de la política exterior de Carlos I.", respuesta: "La política exterior de Carlos I se centró en la defensa de la unidad cristiana bajo la autoridad del emperador y el papa, lo que lo enfrentó a Francia, el Imperio Otomano y los príncipes protestantes en Alemania. En Alemania, la expansión del protestantismo dividió al Imperio, y la guerra comenzó tras la negativa de Lutero a retractarse en la Dieta de Worms (1521). Aunque Carlos ganó la Batalla de Mühlberg (1547), no resolvió el conflicto, y la Paz de Augsburgo (1555) permitió la libertad religiosa para los príncipes protestantes. En Francia, su rivalidad con Francisco I por territorios como Italia, Flandes y Borgoña llevó a tratados como la Paz de las Damas (1529) y la Paz de Crépy (1544), que pusieron fin a las pretensiones francesas. En el Imperio Otomano, Carlos contuvo el avance turco en Viena y llevó a cabo la conquista de Túnez (1535), pero fracasó en Argel (1541). A pesar de su firme defensa de la unidad cristiana, las tensiones en múltiples frentes llevaron a un estancamiento de sus objetivos, culminando en su abdicación en 1556." },
+  { n: 55, titulo: "Explique brevemente las características de la política exterior europea de Carlos I.", respuesta: "La política exterior de Carlos I se centró en la defensa de la \"Universitas Christiana\", buscando la unidad cristiana bajo la autoridad del emperador y el papa. Esto lo enfrentó a Francia, el Imperio Otomano y los príncipes protestantes en Alemania. En Alemania, la expansión protestante dividió al Imperio, y tras la negativa de Lutero en la Dieta de Worms (1521), Carlos inició una guerra contra los protestantes, organizados en la Liga de Esmalcalda (1531). Aunque ganó la Batalla de Mühlberg (1547), la guerra continuó hasta la Paz de Augsburgo (1555), que otorgó libertad religiosa a los príncipes protestantes. En Francia, las luchas con Francisco I por el control de España, Italia, Flandes y Borgoña se resolvieron con el Tratado de Cambrai (1529) y la Paz de Crépy (1544), donde Francisco I reconoció la soberanía de Carlos en Flandes y renunció a sus derechos sobre Milán y Nápoles. Estas disputas marcaron su reinado mientras intentaba consolidar su poder y la unidad cristiana en Europa." },
+  { n: 56, titulo: "Explique brevemente la política exterior de la Monarquía Hispánica en el reinado de Felipe II.", respuesta: "Durante el reinado de Felipe II, la política exterior de España se centró en la defensa del catolicismo y la expansión del poder imperial, enfrentándose a varios conflictos que pusieron a prueba al reino. En Francia, intervino en las Guerras de Religión para apoyar a los católicos, y en 1557, tras la victoria en San Quintín, intentó frenar el protestantismo. En Inglaterra, fracasó en su intento de invadir con la Armada Invencible (1588), derrotada por los ingleses y una tormenta. Con Francia, tras victorias clave, firmó la Paz de Cateau-Cambresis (1559), pero los conflictos no se resolvieron completamente. En el Mediterráneo, enfrentó la piratería otomana, obteniendo una victoria decisiva en Lepanto (1571) al formar la Liga Santa. En los Países Bajos, la rebelión de las provincias contra España resultó en la independencia de las Provincias Unidas (1581). Además, Felipe II reclamó el trono portugués tras la muerte de Sebastián I, estableciendo la Unión Ibérica. Sin embargo, las guerras y una presión fiscal extrema causaron crisis económicas internas, con varias bancarrotas que reflejaron las dificultades para mantener tantos frentes abiertos." },
+  { n: 57, titulo: "Explique brevemente las diferencias de la política internacional de Felipe II con la de su padre, Carlos I.", respuesta: "El principal objetivo de Carlos I fue consolidar la \"Universitas Christiana\", enfrentándose a la expansión del protestantismo en Alemania, lo que resultó en la división del Imperio y conflictos religiosos. La Paz de Augsburgo (1555) permitió la libertad religiosa para los príncipes protestantes. Con Francia, luchó por el control de territorios en España, Italia y Flandes, y el Tratado de Crépy (1544) concluyó la disputa sobre Borgoña. También enfrentó al Imperio Otomano, frenando su expansión en algunas áreas. Tras los fracasos en estos frentes, Carlos abdicó en 1556, dividiendo su imperio entre su hermano Fernando y su hijo Felipe II. Este último continuó la defensa del catolicismo, enfrentándose a varias amenazas. En Francia, apoyó a los católicos en las Guerras de Religión, destacando la victoria en San Quintín (1557). En Inglaterra, fracasó con la Armada Invencible (1588), derrotada por la flota inglesa. En el Mediterráneo, luchó contra los otomanos y corsarios berberiscos, obteniendo una victoria crucial en Lepanto (1571). La rebelión de los Países Bajos resultó en su independencia en 1581, y tras la muerte de Sebastián I de Portugal, Felipe II asumió el trono portugués, formando la Unión Ibérica. Sin embargo, las continuas guerras y la alta presión fiscal provocaron bancarrotas y serias dificultades económicas." },
+  { n: 58, titulo: "Explique brevemente los conflictos políticos más relevantes de la etapa de los Austrias Mayores (S. XVI) en la Península Ibérica.", respuesta: "Durante los reinados de Carlos I y Felipe II, España vivió diversas revueltas internas que reflejaron tensiones sociales, religiosas y políticas. Carlos I enfrentó la revuelta de las Comunidades, motivada por el descontento en Castilla debido a su origen extranjero y la centralización del poder. Las ciudades sublevaron, proponiendo a Juana como reina, pero fueron derrotadas, lo que consolidó el poder de Carlos y su control sobre Castilla. También hubo la rebelión de las Germanías, que surgió en Aragón debido a los abusos de la nobleza y la lucha por el acceso a cargos públicos. Fue sofocada, mostrando las tensiones entre las clases populares y las élites. Por su parte, Felipe II tuvo que lidiar con la revuelta de los moriscos de las Alpujarras, que se alzaron debido a la persecución de sus costumbres y la expropiación de tierras. La rebelión fue sofocada, pero puso de manifiesto las tensiones religiosas en el reino. Otro conflicto importante fue el caso de Antonio Pérez, secretario de Felipe II, quien fue acusado de traición y propagó rumores sobre la monarquía, lo que contribuyó a la Leyenda Negra contra los Austrias. Finalmente, Felipe II tuvo un conflicto personal con su hijo, el Príncipe Carlos, quien conspiraba contra su gobierno y fue encarcelado, muriendo en prisión, lo que también afectó la imagen de la monarquía." },
+  { n: 59, titulo: "Explique las instituciones de gobierno de los Austrias Mayores.", respuesta: "Los Austrias Mayores consolidaron un modelo de monarquía autoritaria con instituciones como los Consejos (Castilla, Indias, Italia, etc.), que asesoraban al monarca en distintos territorios, y los virreinatos en América e Italia. Además, la Inquisición reforzó la unidad religiosa y el poder del rey, y los tercios españoles garantizaron la defensa militar." },
+  { n: 60, titulo: "Explica la expansión colonial en América y el Pacífico durante el siglo XVI.", respuesta: "La primera vuelta al mundo, liderada por Fernando de Magallanes en 1519, tenía como objetivo encontrar una ruta hacia las islas de las Especias. Aunque Magallanes murió en 1521, Juan Sebastián Elcano completó el viaje, demostrando la esfericidad de la Tierra. Por otro lado, la conquista de México comenzó con Hernán Cortés en 1519, quien, tras un enfrentamiento con los aztecas, logró tomar Tenochtitlán en 1521 y establecer el Virreinato de Nueva España. En Perú, Francisco Pizarro conquistó el Imperio Inca en 1532, capturando y ejecutando al emperador Atahualpa. Ambos imperios se convirtieron en bases para la expansión española en América." },
+  { n: 61, titulo: "Analiza la política respecto a América en el siglo XVI y sus consecuencias para España, Europa y la población americana.", respuesta: "El gobierno y administración de América, tras la conquista, se organizó principalmente a través del Consejo de Indias (1524), encargado de supervisar las colonias, y la Casa de la Contratación, que controlaba el comercio con América. Los territorios se dividieron en virreinatos, como el de México y Perú, para facilitar su control. El \"Quinto Real\" garantizaba que el rey recibiera el 20% de los recursos obtenidos de las minas. Para España, la conquista trajo grandes riquezas, consolidando una monarquía centralizada. Para Europa, los metales preciosos impulsaron la economía, y la introducción de productos americanos mejoró la alimentación. Sin embargo, la población indígena sufrió explotación, especialmente a través del sistema de encomiendas y la mita, mientras que la esclavitud de negros también se estableció. El castellano se consolidó como lengua oficial, y surgieron nuevas identidades culturales en América." },
+  { n: 62, titulo: "Explique brevemente el impacto que produjo en Castilla la llegada del oro americano.", respuesta: "Los recursos económicos americanos se convirtieron en una fuente de ingresos esencial para la monarquía: la propiedad de las minas americanas era del rey de España, que concedía su explotación a cambio de un 20% de la producción (\"El Quinto Real\"). El oro y la plata americanos provocaron un auge económico en Castilla, pero también inflaron los precios, generando una crisis inflacionaria. La riqueza facilitó el financiamiento de las guerras de los Austrias, pero debilitó la economía local al fomentar la dependencia de las importaciones y el abandono de sectores productivos como la agricultura y la industria." },
+  { n: 63, titulo: "Explique brevemente la Primera Vuelta al Mundo (1519-1522).", respuesta: "La primera vuelta al mundo: realizada con la idea de llegar a las islas de las Especias (islas Molucas) por el oeste. Con este objetivo partió en 1519 de Sanlúcar de Barrameda una expedición dirigida por Fernando de Magallanes con cinco naves tripuladas por 265 hombres. La travesía fue finalizada por Juan Sebastián Elcano en 1521, llegando a Sevilla con sólo 18 tripulantes: se había dado la primera vuelta al mundo y se demostraba experimentalmente la esfericidad de la Tierra." },
+  { n: 64, titulo: "Explique brevemente la conquista de América (1519-1550).", respuesta: "La conquista de América, entre 1519 y 1550, estuvo marcada por dos eventos clave: la conquista de México y la de Perú. En México, Hernán Cortés desembarcó en 1519 y se dirigió hacia Tenochtitlán, donde fue inicialmente recibido por el emperador azteca Moctezuma. Sin embargo, las relaciones se deterioraron y, tras la derrota de los aztecas en la batalla de Otumba (1520) y la caída de la capital en 1521, Cortés fundó la Ciudad de México como base para el virreinato de Nueva España. En Perú, Francisco Pizarro, en 1532, aprovechó la crisis interna del imperio inca para capturar al emperador Atahualpa, ejecutarlo y tomar Cuzco en 1533. Fundó Lima en 1535, consolidando el control español en la región. El éxito de la conquista se debió a la superioridad militar de los españoles, las divisiones internas en los imperios indígenas y las enfermedades europeas que diezmaban a las poblaciones nativas." },
+  { n: 65, titulo: "Defina brevemente a qué se refiere el término \"gobierno de los validos\".", respuesta: "El \"gobierno de los validos\" describe la práctica de los monarcas del siglo XVII, especialmente los Austrias Menores, de delegar el poder en favoritos o validos, como el Duque de Lerma o el Conde-Duque de Olivares. Estos ejercían gran influencia en asuntos de gobierno, a menudo provocando abusos y la decadencia política." },
+  { n: 66, titulo: "Explique en qué consiste la figura del valido y la importancia que tuvieron en el siglo XVII.", respuesta: "El valido fue una figura política propia de la Monarquía Hispánica durante el siglo XVII. Los monarcas llamados Austrias menores (Felipe III, Felipe IV y Carlos II) renunciaron expresamente a ejercer las tareas de gobierno que pasaron a manos de ministros omnipotentes o válidos que suplantaron de hecho al rey en estas tareas. Era una especie de ministro principal que actuaba en nombre del monarca. Sin embargo, los validos ejercieron sus funciones en función de sus intereses particulares, por lo que predominó el nepotismo y la corrupción. De hecho, se considera que sus actuaciones son unas de las causas de la crisis de la Monarquía Hispánica en ese siglo. No puede considerarse como una institución, ya que en ningún momento se trató de un cargo oficial, puesto que únicamente servía al rey mientras éste tenía confianza en la persona escogida. Entre los válidos más destacados encontramos al duque de Lerma, valido de Felipe III, cuyo fin era el enriquecimiento personal; y sobre todo, al conde-duque de Olivares, valido de Felipe IV, con el que España conoció su decaimiento como potencia hegemónica de Europa." },
+  { n: 67, titulo: "Describa la práctica del valimiento y sus efectos en la crisis de la monarquía.", respuesta: "Los Austrias del siglo XVII renunciaron a ejercer las tareas de gobierno que pasaron a manos de ministros omnipotentes, los llamados validos o privados. Felipe III tuvo un reinado pacífico aunque bajo su mandato se produjo la expulsión definitiva de los moriscos (1609). Saldrían unos 300.000 y fue muy perjudicial para la agricultura en Valencia y Aragón, donde eran numerosos y se dedicaban al trabajo en el campo. Las tareas de gobierno quedaron en manos del Duque de Lerma. Le sucedió su hijo Felipe IV, que dejó el poder en manos del Conde Duque de Olivares cuyo gobierno se caracterizó por el autoritarismo y la centralización. Esto agravó la crisis política, social y económica de la monarquía en el siglo XVII, al depender de decisiones poco acertadas que condujeron a la decadencia de España como potencia mundial." },
+  { n: 68, titulo: "El reinado de Felipe III (1598-1621): la política exterior.", respuesta: "Felipe III siguió una política exterior de paz, firmando tratados como la Tregua de los Doce Años con los Países Bajos (1609) y el Tratado de Londres con Inglaterra (1604). Sin embargo, mantuvo la intervención en Italia y fomentó la colonización en América. Estas acciones buscaron estabilizar el reino tras las largas guerras de Felipe II." },
+  { n: 69, titulo: "Explique brevemente las causas y consecuencias de la expulsión de los moriscos en 1609.", respuesta: "La rebelión de los moriscos granadinos (1568-mediados de 1571) a causa de la pragmática de 1567 en contra de sus costumbres y formas de vida. Los moriscos respondieron iniciando un levantamiento en las Alpujarras. Tras una fuerte resistencia fueron vencidos militarmente por don Juan de Austria, hermanastro del rey. Terminada la sublevación, el rey ordenó la deportación de los moriscos granadinos a otras regiones. La expulsión de los moriscos hizo disminuir la población de algunos reinos hispanos: Valencia, Murcia y Aragón." },
+  { n: 70, titulo: "El reinado de Felipe IV (1621-1665): la política interior.", respuesta: "Felipe IV, que dejó el poder en manos del Conde Duque de Olivares cuyo gobierno se caracterizó por el autoritarismo y la centralización. La Guerra de los Treinta Años consumía enormes recursos a Castilla. El Conde Duque de Olivares pretendió una contribución de todos los territorios de la Corona y para ello creó la Unión de armas por la que todos los reinos y virreinatos debían aportar hombres y medios. Sin embargo, esto provocó en 1640 la oposición de distintos territorios. La revuelta en Cataluña se originó cuando Olivares en plena guerra, abrió un frente militar contra los franceses en los Pirineos lo que obligó a los catalanes a alojar a las tropas y a contribuir al gasto militar. Esto, junto a los desmanes cometidos por los soldados reales, provocó una rebelión. La revuelta se generalizó en Cataluña y llegó a tener el apoyo de Francia y finalizó en 1652 con la rendición de Barcelona." },
+  { n: 71, titulo: "El reinado de Felipe IV (1621-1665): la política exterior.", respuesta: "La Guerra de los Treinta Años, que comenzó en 1618, llegó a su fin con la Paz de Westfalia en 1648, un acuerdo que reconoció la independencia de los Países Bajos, pero España continuó la guerra contra Francia. En 1643, los invencibles tercios españoles fueron derrotados en la batalla de Rocroi, lo que marcó un punto de inflexión para el poder militar de España. En 1659, se firmó la Paz de los Pirineos con Francia, que implicó importantes pérdidas para España: la provincia de Artois, varias plazas flamencas y los territorios catalanes del Rosellón y la Cerdaña. Además, se pactó el matrimonio de Luis XIV con la infanta española María Teresa de Austria, lo que sentó las bases para la sucesión de Felipe de Anjou al trono español tras la muerte de Carlos II. En cuanto a Portugal, la negativa a enviar tropas a Cataluña llevó a una rebelión en 1640, proclamándose rey el duque de Braganza como Juan IV. España reconoció finalmente la independencia de Portugal en 1668, con el Tratado de Lisboa, bajo el reinado de Carlos II. Este periodo marcó el fin de la hegemonía española en Europa y el inicio de la supremacía francesa." },
+  { n: 72, titulo: "Explica los principales proyectos de reforma del Conde Duque de Olivares.", respuesta: "El Conde Duque de Olivares pretendió una contribución de todos los territorios de la Corona y para ello creó la Unión de armas por la que todos los reinos y virreinatos debían aportar hombres y medios. Sin embargo, esto provocó en 1640 la oposición de distintos territorios. La revuelta en Cataluña se originó cuando Olivares en plena guerra, abrió un frente militar contra los franceses en los Pirineos lo que obligó a los catalanes a alojar a las tropas y a contribuir al gasto militar. Esto, junto a los desmanes cometidos por los soldados reales, provocó una rebelión. La revuelta se generalizó en Cataluña y llegó a tener el apoyo de Francia y finalizó en 1652 con la rendición de Barcelona." },
+  { n: 73, titulo: "Analice las causas de la guerra de los Treinta Años, y sus consecuencias para la monarquía hispánica y para Europa.", respuesta: "La Guerra de los Treinta Años (1618-1648) tuvo dos causas fundamentales: la expansión del protestantismo en Europa central y septentrional, que España intentó frenar, y la hegemonía de los Habsburgo, que generó oposición de otras potencias europeas. España se enfrentó a varios países protestantes, como el norte de Flandes, Dinamarca, Suecia y Francia, que aunque católica, también estuvo involucrada. A pesar de algunas victorias significativas, como la Rendición de Breda (1625), la derrota en la Batalla de Rocroi (1643) fue crucial para el bando protestante. Con el Tratado de Westfalia (1648), España reconoció la independencia de las Provincias Unidas de Holanda, bajo la Casa de Orange. Aunque la guerra con Francia continuó, la Paz de los Pirineos (1659) la puso fin, con la cesión de territorios como Artois, el Rosellón y la Cerdaña, marcando el fin de la supremacía española y el ascenso de Francia." },
+  { n: 74, titulo: "Compare y comente las rebeliones de Cataluña y Portugal de 1640.", respuesta: "La Rebelión de Cataluña (1640) fue consecuencia de la política centralizadora del Conde-Duque de Olivares, quien implementó el proyecto de la Unión de Armas, que obligaba a las regiones a contribuir con tropas y recursos para las guerras, causando descontento, especialmente en Cataluña. Esto provocó el levantamiento conocido como la Guerra de los Segadores, que recibió apoyo de Francia. Sin embargo, las tropas de Felipe IV lograron sofocar la rebelión.\n\nPor otro lado, la independencia de Portugal comenzó en 1640 cuando el duque de Braganza fue proclamado rey. La intervención de los sucesores de Felipe II, que intentaron integrar totalmente a Portugal a la Corona de Castilla, generó un fuerte rechazo. La revuelta duró hasta 1652, cuando Portugal logró su independencia. Esta independencia se consolidó con el Tratado de Lisboa en 1668, que marcó el fin de la Unión Ibérica (1580-1668) y la restauración de Portugal como reino soberano." },
+  { n: 75, titulo: "El reinado de Carlos II (1665-1700): la política interior.", respuesta: "Durante el reinado de Carlos II, la política interior estuvo marcada por una crisis económica, social y política. La debilidad del rey, conocido como \"El Hechizado\", permitió que su gobierno fuera controlado por facciones de la corte. La falta de reformas eficaces y los problemas sucesorios agravaron la crisis, dejando al país en una situación precaria al final del siglo XVII." },
+  { n: 76, titulo: "El reinado de Carlos II (1665-1700): la política exterior.", respuesta: "En política exterior, el reinado de Carlos II se caracterizó por la pérdida progresiva de territorios y el debilitamiento de la influencia española en Europa. España fue arrastrada a conflictos como la Guerra de la Liga de Augsburgo (1688-1697), mientras enfrentaba la creciente presión de Francia bajo Luis XIV. Al final de su reinado, la cuestión sucesoria preparó el escenario para la Guerra de Sucesión Española." },
+  { n: 77, titulo: "Explica los principales factores de la crisis demográfica y económica del siglo XVII, y sus consecuencias.", respuesta: "El siglo XVII en España estuvo marcado por una grave crisis social y económica. La agricultura, la artesanía y el comercio no pudieron adaptarse a la inflación y la competencia extranjera, mientras que las finanzas del Estado se desplomaban debido a los gastos en la corte y las guerras. Aunque se intentaron medidas como el aumento de impuestos y la emisión de deuda pública, España terminó en bancarrota. La sociedad estaba dominada por la nobleza que vivía de las rentas y por los pícaros, ya que el trabajo productivo era poco valorado. La población se redujo de ocho a siete millones de habitantes, debido al flujo migratorio hacia América, las guerras, las epidemias y las malas cosechas. La expulsión de los moriscos también contribuyó a la disminución de la población en regiones como Valencia, Murcia y Aragón. Este contexto de crisis agudizó los problemas del país, dificultando su desarrollo económico y social." },
+  { n: 78, titulo: "Describa la sociedad estamental de la Edad Moderna.", respuesta: "La sociedad estamental de la Edad Moderna estaba dividida en tres grupos principales: la nobleza, el clero y el tercer estado. Los dos primeros gozaban de privilegios, como la exención de impuestos, mientras que el tercer estado, compuesto por campesinos y burgueses, sostenía la carga fiscal. Esta estructura rígida reflejaba desigualdades sociales profundas, que se mantuvieron hasta la crisis del Antiguo Régimen." },
+  { n: 79, titulo: "Describa brevemente por qué se produjo la Guerra de Sucesión Española, qué países estuvieron implicados en ella y cuál fue su resultado.", respuesta: "La Guerra de Sucesión Española (1700-1714) surgió tras la muerte sin descendencia de Carlos II, quien dejó el trono a Felipe de Anjou, nieto de Luis XIV de Francia. Esto generó el rechazo del archiduque Carlos de Habsburgo, apoyado por Austria, Gran Bretaña y los Países Bajos. El conflicto, que fue tanto dinástico como civil, enfrentó a las coronas de Aragón, que se alinearon con los Habsburgo, contra Castilla y Navarra, que apoyaron a Felipe V. La guerra tuvo dos momentos clave: la victoria de las tropas felipistas en la Batalla de Almansa (1707) y la muerte del emperador José I de Austria en 1711, que convirtió al archiduque Carlos en emperador. Esto llevó a Gran Bretaña a retirar su apoyo al bando austracista. Los tratados de Utrecht (1713) y Rastadt (1714) pusieron fin al conflicto. Felipe V fue reconocido como rey de España, consolidando la dinastía Borbón, pero España cedió territorios a Austria, Inglaterra y la Casa de Saboya. Además, Felipe V centralizó el poder mediante los Decretos de Nueva Planta, que suprimieron las instituciones de la Corona de Aragón, implementando un modelo centralista borbónico." },
+  { n: 80, titulo: "Explique brevemente las causas de la Guerra de Sucesión española.", respuesta: "La Guerra de Sucesión Española (1700-1714) comenzó tras la muerte sin descendencia de Carlos II, último monarca de los Austrias. Felipe de Anjou, nieto de Luis XIV de Francia, fue designado como su sucesor, pero el archiduque Carlos de Habsburgo, hijo del emperador de Austria, rechazó este testamento y declaró la guerra, lo que implicó a varias potencias europeas. Felipe V, al ascender al trono, consolidó la dinastía Borbón, pero esto alarmó a Austria, Gran Bretaña y los Países Bajos, que apoyaron al archiduque. En España, la Corona de Aragón se alió con los Habsburgo, mientras que Castilla y Navarra apoyaron a Felipe V. Dos momentos clave de la guerra fueron la victoria de las tropas borbónicas en la Batalla de Almansa (1707) y la muerte del emperador José I de Austria en 1711, lo que convirtió al archiduque Carlos en emperador. Este cambio llevó a Gran Bretaña a retirar su apoyo al bando austracista." },
+  { n: 81, titulo: "Explique las consecuencias de la Guerra de Sucesión española.", respuesta: "La guerra terminó con los tratados de Utrecht (1713) y Rastadt (1714). Felipe V fue reconocido como rey de España, consolidando la dinastía Borbón, pero España cedió territorios: a Austria, Flandes, Luxemburgo, el Milanesado, Nápoles y Cerdeña; a Inglaterra, Gibraltar y Menorca; y a la Casa de Saboya, Sicilia. Además, Gran Bretaña obtuvo privilegios comerciales con América, como el derecho de asiento para el comercio de esclavos y el navío de permiso. En España, Felipe V centralizó el poder mediante los Decretos de Nueva Planta, que abolieron las instituciones, fueros y leyes de la Corona de Aragón, sustituyéndolos por los de Castilla. Estos decretos se implementaron progresivamente en los territorios conquistados: Valencia y Aragón (1707), Mallorca (1715) y Cataluña (1716). Esta política marcó el inicio del modelo centralista borbónico." },
+  { n: 82, titulo: "Defina qué fueron los Decretos de Nueva Planta y explique su importancia en la configuración del nuevo Estado borbónico.", respuesta: "Los Decretos de Nueva Planta, emitidos por Felipe V tras la Guerra de Sucesión Española (1700-1714), suprimieron los fueros e instituciones propias de los territorios de la Corona de Aragón (Cataluña, Aragón, Valencia y Mallorca), imponiendo el modelo político, administrativo y legal de Castilla. Estos decretos fueron consecuencia del apoyo de estos territorios al Archiduque Carlos de Austria durante la guerra y respondían al centralismo borbónico, influido por el modelo francés. Felipe V justificó las reformas como un derecho de conquista, eliminando privilegios medievales y reorganizando el sistema fiscal con nuevos impuestos. La implementación de los decretos fue progresiva: en Valencia y Aragón (1707), Mallorca (1715) y Cataluña (1716). Estos cambios consolidaron la centralización del Estado español, fortaleciendo el poder monárquico desde Castilla y transformando las Cortes de Castilla en las Cortes de España, mientras que el Consejo de Aragón fue suprimido y sus funciones transferidas al Consejo de Castilla." },
+  { n: 83, titulo: "Explique la política exterior de los Borbones en el siglo XVIII.", respuesta: "La política exterior de los Borbones en el siglo XVIII se centró en recuperar influencia a través de los Pactos de Familia con Francia, lo que los llevó a involucrarse en conflictos europeos y coloniales, especialmente con Inglaterra por el control de Gibraltar y el comercio. En América, las colonias seguían siendo esenciales para los ingresos de la Corona, lo que motivó una reorganización del comercio. El comercio con América estaba inicialmente monopolizado por los puertos de Sevilla y Cádiz. Sin embargo, la incapacidad de la industria y agricultura castellana para satisfacer la demanda colonial permitió la entrada de comerciantes extranjeros. Se intentaron crear compañías comerciales, como la Guipuzcoana de Caracas, pero sin éxito. A mediados del siglo XVIII, se liberalizó el comercio, culminando en 1765 con el fin del monopolio de Cádiz y la apertura de otros puertos españoles. Aunque Cádiz continuó siendo un puerto clave, su impacto en la economía andaluza fue limitado debido a la reexportación de productos europeos. En cambio, puertos como Barcelona, más centrados en exportaciones locales, impulsaron el crecimiento económico de Cataluña, favoreciendo su desarrollo industrial y comercial." },
+  { n: 84, titulo: "Explique brevemente en qué consistieron los Pactos de Familia, cuántos se firmaron, y con qué objetivo.", respuesta: "Los Pactos de Familia fueron alianzas entre España y Francia, ambas gobernadas por los Borbones, para defender sus intereses comunes. Se firmaron tres entre 1733 y 1761, con el objetivo de recuperar territorios perdidos y contrarrestar la influencia de Inglaterra. Estas alianzas llevaron a España a participar en conflictos europeos y coloniales." },
+  { n: 85, titulo: "Defina el concepto de despotismo ilustrado. / Explique brevemente qué es el Despotismo Ilustrado, rasgo definidor de esta dinastía en el siglo XVIII.", respuesta: "El Despotismo Ilustrado fue la forma de ejercer el poder que adoptó la monarquía absoluta en el siglo XVIII al ser influida por el movimiento ilustrado. Trataba de conjugar su poder absoluto con el ideal del rey filósofo que, asistido por las minorías ilustradas del país, sabía lo que convenía a sus súbditos y estaba en condiciones de impulsar la reforma racional de la sociedad en todos los aspectos (educación, economía...) para el progreso y la felicidad de su pueblo, pero sin contar con la opinión mayoritaria de este ni con su consentimiento. La esencia de este sistema de gobierno se suele resumir en la frase \"todo para el pueblo pero sin el pueblo\"." },
+  { n: 86, titulo: "Explique brevemente las reformas en la Administración emprendidas bajo la dinastía borbónica a lo largo del siglo XVIII.", respuesta: "La dinastía borbónica en el siglo XVIII promovió una profunda centralización del poder en España, un proceso iniciado por Felipe V y continuado por Fernando VI. A diferencia de los Austrias, que habían concentrado el poder en Castilla pero mantenían instituciones propias en la Corona de Aragón, Navarra y el País Vasco, los Borbones impulsaron un modelo más uniforme para reorganizar los reinos peninsulares. Felipe V, mediante los Decretos de Nueva Planta, aplicó la estructura administrativa y política de Castilla a los territorios de la Corona de Aragón, eliminando sus Cortes e instituciones propias y centralizando el poder en Castilla. Esto transformó la organización territorial, eliminando los virreinatos y creando provincias gobernadas por capitanes generales. Las funciones de los antiguos consejos, como el de Aragón, pasaron al Consejo de Castilla. La reforma fiscal buscó una tributación más equitativa, con la inclusión de nobles y clérigos. A pesar de la resistencia de los privilegiados, se introdujeron sistemas como el catastro. En 1782, el ministro Cabarrús fundó el Banco de San Carlos para financiar el ejército y el comercio, y consolidar el modelo centralizado. Estas reformas definieron el camino hacia un Estado fiscalmente más organizado bajo los Borbones." },
+  { n: 87, titulo: "Explique brevemente las medidas reformistas llevadas a cabo durante el reinado de Carlos III.", respuesta: "Carlos III (1759-1788), influido por las ideas ilustradas de su tiempo, promovió un amplio programa de reformas durante su reinado, con el objetivo de modernizar España sin desafiar la monarquía absoluta. A través del Despotismo Ilustrado, buscó transformar la sociedad, la economía y la política, apoyado por ministros como Esquilache, Aranda, Campomanes y Floridablanca. Entre las reformas sociales, destacó la declaración de la dignidad de todas las profesiones y la creación de instituciones educativas como los Reales Estudios de San Isidro (1770). Sin embargo, sus intentos de modernizar costumbres, como la vestimenta, desataron el Motín de Esquilache en 1766. En el ámbito político, reforzó el control del Estado sobre la Iglesia (expulsión de los jesuitas en 1767) y racionalizó la administración estatal, creando nuevas secretarías. En economía, impulsó reformas agrarias, apoyó la industria con la creación de Reales Fábricas y facilitó el libre comercio con América. En Madrid, transformó la ciudad con obras de infraestructura, ganándose el título de \"el mejor alcalde de Madrid\". A pesar de las resistencias de los sectores privilegiados, su legado es recordado como un intento de equilibrar tradición y progreso en el siglo XVIII." },
+  { n: 88, titulo: "Explique brevemente las medidas más relevantes emprendidas por los monarcas ilustrados para el desarrollo de la agricultura.", respuesta: "En la segunda mitad del siglo XVIII, el crecimiento poblacional en España aumentó la demanda agrícola, lo que llevó a Carlos III a adoptar reformas basadas en la fisiocracia. Su objetivo era mejorar la agricultura y crear pequeños propietarios campesinos. Destacó el proyecto de las Nuevas Poblaciones de Sierra Morena y Andalucía (1767), que repobló áreas deshabitadas con colonos extranjeros para fomentar la producción agrícola y proteger el camino real. Además, se intentaron reformas como la limitación de precios de cereales, la redistribución de tierras y mejoras en el transporte con proyectos como los Canales de Castilla y Aragón. Sin embargo, la corrupción local y la falta de desamortización dificultaron el éxito de estas reformas, y el proyecto de Ley Agraria de Jovellanos en 1794 no pudo aplicarse debido a la inestabilidad política." },
+  { n: 89, titulo: "Explique las medidas que adoptaron o proyectaron los primeros Borbones para sanear la Hacienda Real.", respuesta: "En el siglo XVIII, Carlos III intentó reorganizar la Hacienda para que los impuestos se pagaran según la riqueza, incluyendo a los privilegiados como la nobleza y el clero. Se implantaron sistemas como la equivalente y la talla en Valencia, la única contribución en Aragón, y el catastro en Cataluña, que asignaban cuotas fijas a repartir entre los habitantes. Aunque el catastro fue exitoso, las resistencias de los privilegiados impidieron su aplicación en toda España. Ante las dificultades fiscales, el ministro Cabarrús fundó en 1782 el Banco de San Carlos, encargado de emitir deuda pública a través de Vales Reales y de financiar el ejército, obras públicas y el comercio de plata americana." },
+  { n: 90, titulo: "Describa las relaciones Iglesia-Estado de los Borbones a lo largo del s. XVIII.", respuesta: "El Antiguo Régimen se caracterizaba por una monarquía absoluta, donde el rey concentraba los poderes ejecutivo, legislativo y judicial, basando su autoridad en un mandato divino. Aunque su poder era casi ilimitado, los parlamentos o cortes podían actuar como una leve restricción, aunque eran convocados con poca frecuencia. La labor reformadora de los Borbones estuvo influenciada por la Ilustración, que promovía el uso de la razón para alcanzar el progreso y la felicidad humana. Los pensadores ilustrados defendían la educación, criticaban la sociedad estamental y abogaban por la igualdad, libertad y mayor libertad económica, cuestionando el absolutismo monárquico y el dominio de la Iglesia. Propugnaban un modelo político basado en un contrato entre gobernantes y gobernados que garantizara los derechos fundamentales." },
+  { n: 91, titulo: "Explique las causas de la expulsión de los jesuitas durante el reinado de Carlos III.", respuesta: "Al comenzar su reinado, Carlos III enfrentó una fuerte oposición a sus reformas, especialmente de los grupos privilegiados. En 1766, el motín de Esquilache estalló en Madrid debido a la escasez de alimentos, el poder de los cargos extranjeros y el temor de los privilegiados a perder influencia. Ante la gravedad de la revuelta, Carlos III destituyó a Esquilache, paralizó las reformas y adoptó medidas populares como reducir los precios de algunos productos. Sin embargo, el rey continuó con su programa reformista, apoyado por ministros como Campomanes y Jovellanos. En el ámbito religioso, los ilustrados, que eran regalistas, apoyaban la autoridad del rey frente a la Iglesia. Carlos III reclamó el derecho a nombrar cargos eclesiásticos, controlar la Inquisición y fundar monasterios, además de combatir los intentos de la Iglesia de constituir un poder dentro del Estado. Esto explica la expulsión de los jesuitas en 1767, probablemente un factor en los motines contra Esquilache." },
+  { n: 92, titulo: "Explica la evolución demográfica del siglo XVIII.", respuesta: "Los monarcas y especialmente los déspotas ilustrados, convencidos de que una elevada población era condición indispensable para promover el desarrollo de la agricultura y la industria, adoptaron políticas poblacionistas (repoblación de Sierra Morena con la fundación de La Carolina o La Carlota). Figura clave de esa colonización fue Pablo de Olavide (Asistente Real). Sin embargo, el crecimiento de la población española durante el siglo XVIII se mantuvo limitado por la persistencia de las crisis de subsistencia. La carestía de alimentos provocaba periódicas hambrunas que reducían la población y consumían los excedentes generados en los años de buenas cosechas, esta población debilitada por el hambre era más vulnerables ante las enfermedades y epidemias y hacían aumentar una mortalidad que ya era elevada de por sí. Pero esta situación no se podía mejorar si no se introducían reformas legales e innovaciones técnicas en la agricultura." },
+  { n: 93, titulo: "Explica la política industrial de la monarquía borbónica a lo largo del s. XVIII.", respuesta: "Durante el reinado de los Borbones, se impulsó la creación de manufacturas para aumentar la producción y reducir la dependencia de importaciones de productos de lujo. Se fundaron las Reales Fábricas, como la de Tapices en Madrid y Cristal en La Granja, y se promovió la creación de talleres privados mediante la reducción de privilegios gremiales y facilitando la instalación de nuevos talleres. La actividad manufacturera se concentró en tres regiones: Valencia (seda), País Vasco (minería del hierro) y Cataluña (textil y algodonera). La expansión de las manufacturas catalanas fue favorecida por la abolición de los mercados interiores, la apertura de los mercados americanos y el mejor poder adquisitivo del campesinado local." },
+  { n: 94, titulo: "Especifique las causas del despegue económico de Cataluña en el siglo XVIII.", respuesta: "Los Borbones fomentaron la creación de manufacturas para aumentar la producción y frenar las importaciones de productos de lujo. Las manufacturas se implantaron por todo el territorio, pero tres zonas concentraron la mayor actividad: Valencia, País Vasco y Cataluña, con seda, minería del hierro y textil e industria algodonera (indianas) respectivamente. La expansión de las manufacturas catalanas fue debida a la ampliación del mercado a Castilla tras la abolición de los mercados interiores, la apertura de los mercados americanos y a la demanda de la propia Cataluña, cuyo campesinado estaba en mejores condiciones para el consumo, al permitir la actividad agraria una mínima acumulación de beneficios." },
+  { n: 95, titulo: "Explica las medidas adoptadas respecto al comercio con América.", respuesta: "Bajo los Borbones, especialmente Carlos III, se reorganizó el comercio con América, vital para los ingresos de la Corona. Aunque los puertos de Sevilla y Cádiz monopolizaban el comercio, la incapacidad de la industria castellana para satisfacer la demanda americana permitió que comerciantes extranjeros dominaran el sector. Para corregir esto, se crearon compañías comerciales como la \"Guipuzcoana de Caracas\", pero al fracasar, se avanzó hacia la liberalización del comercio. En 1765, se abolió el monopolio de Cádiz y se permitió la libre comunicación de los puertos. Aunque Cádiz siguió siendo el principal puerto por volumen de negocio, su influencia en la prosperidad andaluza fue limitada, ya que reexportaba mercancías europeas. En cambio, puertos como Barcelona, especializados en productos locales, impulsaron el crecimiento económico de Cataluña." },
+  { n: 96, titulo: "Explique el por qué de la denominación de Siglo de las Luces al siglo XVIII y las características del movimiento ideológico y cultural al que hace referencia.", respuesta: "El «Siglo de las Luces» hace referencia al siglo XVIII, un período marcado por la expansión de la Ilustración, un movimiento ideológico y cultural que promovía el uso de la razón para iluminar, por eso la referencia a luces, la vida humana, cuestionando las bases del Antiguo Régimen. En España, su difusión fue lenta debido a la falta de una burguesía fuerte y la influencia de la Iglesia, convirtiéndola en un movimiento minoritario centrado en lo científico y humanístico. Intelectuales como el Padre Feijoo, Jovellanos, Campomanes, Aranda y Floridablanca fueron clave en la difusión de ideas ilustradas en el país." },
+  { n: 97, titulo: "Explique la importancia de las Sociedades Económicas del Amigos del País.", respuesta: "Creación de Sociedades Económicas de Amigos del País para que propusieran medidas de fomento económico con el objeto de fomentar la agricultura, la industria y el comercio, y traducir y publicar libros extranjeros de ideas fisiócratas e ilustradas. La primera de ellas fue la Sociedad Económica Vascongada de Amigos del País (1765), la segunda en fundarse fue la de Tudela y la tercera la de Baeza (1774). A partir de la creación en Madrid de la Real Sociedad Económica Matritense de Amigos del País (1775), todas copiarán el modelo de esta sociedad madrileña." },
+];
+
+/* ─── ICONS (inline SVG) ──────────────────────────────── */
+const IconEye = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+const IconChevLeft = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+);
+const IconChevRight = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+const IconReset = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="1 4 1 10 7 10"/>
+    <path d="M3.51 15a9 9 0 1 0 .49-3.96"/>
+  </svg>
+);
+const IconShuffle = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 3 21 3 21 8"/>
+    <line x1="4" y1="20" x2="21" y2="3"/>
+    <polyline points="21 16 21 21 16 21"/>
+    <line x1="15" y1="15" x2="21" y2="21"/>
+    <line x1="4" y1="4" x2="9" y2="9"/>
+  </svg>
+);
+
+/* ─── STORAGE ─────────────────────────────────────────── */
+const LS_TACHADOS  = 'historia_tachados';
+const LS_HISTORIAL = 'historia_historial';
+const LS_POSICION  = 'historia_posicion';
+const loadTachados = () => {
+  try { return new Set(JSON.parse(localStorage.getItem(LS_TACHADOS) || '[]')); }
+  catch { return new Set(); }
+};
+const saveTachados  = (s) => localStorage.setItem(LS_TACHADOS, JSON.stringify([...s]));
+const loadHistorial = () => {
+  try { return JSON.parse(localStorage.getItem(LS_HISTORIAL) || '[]'); }
+  catch { return []; }
+};
+const saveHistorial = (h) => localStorage.setItem(LS_HISTORIAL, JSON.stringify(h));
+const loadPosicion  = () => {
+  const v = localStorage.getItem(LS_POSICION);
+  return v !== null ? parseInt(v, 10) : -1;
+};
+const savePosicion  = (n) => localStorage.setItem(LS_POSICION, String(n));
+
+/* ─── GLASS BUTTON ───────────────────────────────────── */
+function GlassBtn({ onClick, disabled, children, accent, wide, style: extraStyle }) {
+  const base = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: 8, cursor: disabled ? 'not-allowed' : 'pointer',
+    border: 'none', outline: 'none',
+    fontFamily: 'inherit', fontWeight: 600, fontSize: 15,
+    color: '#fff', borderRadius: 9999,
+    transition: 'transform 0.12s ease, opacity 0.12s ease',
+    opacity: disabled ? 0.3 : 1,
+    userSelect: 'none',
+    ...extraStyle,
+  };
+  const glassStyle = accent ? {
+    background: 'linear-gradient(135deg, #FF2D92, #AF52DE, #007AFF)',
+    boxShadow: '0 4px 24px rgba(175,82,222,0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+  } : {
+    background: 'rgba(255,255,255,0.08)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 12px rgba(0,0,0,0.3)',
+    backdropFilter: 'blur(24px)',
+    border: '1px solid rgba(255,255,255,0.14)',
+  };
+
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      style={{ ...base, ...glassStyle }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.transform = 'scale(0.97)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = 'scale(0.94)'; }}
+      onMouseUp={e => { if (!disabled) e.currentTarget.style.transform = 'scale(0.97)'; }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ─── ACCENT GRADIENT ─────────────────────────────────── */
+const ACCENT = 'linear-gradient(135deg, #FF2D92, #AF52DE, #007AFF)';
+const ACCENT_SHADOW = '0 4px 20px rgba(175,82,222,0.4)';
+
+/* ─── MAIN APP ────────────────────────────────────────── */
+function App() {
+  const [tachados, setTachadosRaw]       = useState(loadTachados);
+  const [repaso,   setRepasoRaw]         = useState(() => new Set());
+  const [historial, setHistorialRaw]     = useState(loadHistorial);
+  const [posicion, setPosicionRaw]       = useState(loadPosicion);
+  const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
+  const [animKey, setAnimKey]            = useState(0);
+
+  const setTachados  = (s) => { saveTachados(s);  setTachadosRaw(s); };
+  const setRepaso    = (s) => { setRepasoRaw(s); };
+  const setHistorial = (h) => { saveHistorial(h); setHistorialRaw(h); };
+  const setPosicion  = (n) => { savePosicion(n);  setPosicionRaw(n); };
+
+  const indiceActual = posicion >= 0 ? historial[posicion] : null;
+  const actual       = indiceActual !== null ? preguntas[indiceActual] : null;
+  const restantes    = preguntas.filter(p => !tachados.has(p.n)).length;
+  const completado   = restantes === 0;
+  const puedeAnterior  = posicion > 0;
+  const enRepaso     = actual ? repaso.has(actual.n) : false;
+
+  const bump = () => setAnimKey(k => k + 1);
+
+  const irAIndice = useCallback((idx) => {
+    const nuevo = [...historial.slice(0, posicion + 1), idx];
+    setHistorial(nuevo);
+    setPosicion(nuevo.length - 1);
+    setMostrarRespuesta(false);
+    bump();
+  }, [historial, posicion]);
+
+  const sacarAleatoria = useCallback(() => {
+    const disponibles = preguntas
+      .map((_, i) => i)
+      .filter(i => !tachados.has(preguntas[i].n));
+    if (disponibles.length === 0) return;
+    irAIndice(disponibles[Math.floor(Math.random() * disponibles.length)]);
+  }, [tachados, irAIndice]);
+
+  const irAPregunta = (n) => irAIndice(n - 1);
+
+  const siguiente = () => {
+    if (posicion < historial.length - 1) {
+      setPosicion(posicion + 1);
+      setMostrarRespuesta(false);
+      bump();
+    } else {
+      sacarAleatoria();
+    }
+  };
+
+  const anterior = () => {
+    if (posicion > 0) {
+      setPosicion(posicion - 1);
+      setMostrarRespuesta(false);
+      bump();
+    }
+  };
+
+  const revelar = () => {
+    setMostrarRespuesta(true);
+    if (actual) {
+      const nuevos = new Set(tachados);
+      nuevos.add(actual.n);
+      // quitar de repaso si estaba
+      const r = new Set(repaso);
+      r.delete(actual.n);
+      setRepaso(r);
+      setTachados(nuevos);
+    }
+  };
+
+  const toggleRepaso = () => {
+    if (!actual) return;
+    const r = new Set(repaso);
+    if (r.has(actual.n)) {
+      r.delete(actual.n);
+    } else {
+      r.add(actual.n);
+      // quitar de tachados si estaba
+      const t = new Set(tachados);
+      t.delete(actual.n);
+      setTachados(t);
+    }
+    setRepaso(r);
+  };
+
+  const reiniciar = () => {
+    setTachados(new Set());
+    setRepaso(new Set());
+    setHistorial([]);
+    setPosicion(-1);
+    setMostrarRespuesta(false);
+    bump();
+  };
+
+  // Keyboard nav
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'ArrowRight') siguiente();
+      if (e.key === 'ArrowLeft') anterior();
+      if ((e.key === ' ' || e.key === 'Enter') && !mostrarRespuesta) revelar();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [posicion, historial, mostrarRespuesta, tachados, repaso]);
+
+  const pct = (tachados.size / preguntas.length) * 100;
+
+  return (
+    <div style={{ position: 'relative', minHeight: '100vh', zIndex: 1 }}>
+
+      {/* Blobs */}
+      <div className="blob-stage">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+        <div className="blob blob-3"></div>
+        <div className="blob blob-4"></div>
+      </div>
+
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 2, maxWidth: 680, margin: '0 auto', padding: '48px 20px 80px' }}>
+
+        {/* Header */}
+        <header style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{
+            display: 'inline-block',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: 9999,
+            padding: '6px 18px',
+            marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
+              Historia de España
+            </span>
+          </div>
+          <h1 style={{
+            fontSize: 'clamp(28px, 5vw, 42px)',
+            fontWeight: 700,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.1,
+            background: ACCENT,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: 8,
+          }}>
+            Historia de España
+          </h1>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 500 }}>
+            {tachados.size} vistas · {repaso.size} para repasar · {restantes} pendientes
+          </p>
+        </header>
+
+        {/* Progress bar */}
+        <div style={{
+          height: 3,
+          borderRadius: 9999,
+          background: 'rgba(255,255,255,0.08)',
+          marginBottom: 32,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%',
+            borderRadius: 9999,
+            width: `${pct}%`,
+            background: ACCENT,
+            transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+          }} />
+        </div>
+
+        {/* Flashcard */}
+        {actual ? (
+          <div
+            key={animKey}
+            className="fade-up"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.13)',
+              backdropFilter: 'blur(40px) saturate(200%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+              borderRadius: 28,
+              padding: 'clamp(24px, 4vw, 36px)',
+              marginBottom: 24,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+          >
+            {/* Number badge + label */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+              <span style={{
+                fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)',
+                paddingTop: 4,
+              }}>Pregunta</span>
+              <span style={{
+                fontSize: 52, fontWeight: 700, lineHeight: 1,
+                background: ACCENT,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>
+                {String(actual.n).padStart(2, '0')}
+              </span>
+            </div>
+
+            {/* Question */}
+            <h2 style={{
+              fontSize: 'clamp(16px, 2.5vw, 19px)',
+              fontWeight: 500,
+              lineHeight: 1.5,
+              color: 'rgba(255,255,255,0.92)',
+              marginBottom: mostrarRespuesta ? 24 : 28,
+              textWrap: 'pretty',
+            }}>
+              {actual.titulo}
+            </h2>
+
+            {/* Answer */}
+            {mostrarRespuesta && (
+              <div style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.09)',
+                borderRadius: 18,
+                padding: '20px 22px',
+                marginBottom: 24,
+              }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+                  textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)',
+                  marginBottom: 12,
+                }}>Respuesta</div>
+                <p style={{
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  color: 'rgba(255,255,255,0.78)',
+                  whiteSpace: 'pre-line',
+                  textWrap: 'pretty',
+                }}>
+                  {actual.respuesta}
+                </p>
+              </div>
+            )}
+
+            {/* Controls */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <GlassBtn
+                onClick={anterior}
+                disabled={!puedeAnterior}
+                style={{ width: 50, height: 50, flexShrink: 0, borderRadius: 9999 }}
+              >
+                <IconChevLeft />
+              </GlassBtn>
+
+              {!mostrarRespuesta ? (
+                <GlassBtn
+                  onClick={revelar}
+                  accent={true}
+                  style={{ flex: 1, height: 50 }}
+                >
+                  <IconEye />
+                  Revelar respuesta
+                </GlassBtn>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {/* Repasar toggle */}
+                    <button
+                      onClick={toggleRepaso}
+                      style={{
+                        flex: 1, height: 50, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', gap: 7,
+                        borderRadius: 9999, cursor: 'pointer', border: 'none',
+                        fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                        transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+                        ...(enRepaso ? {
+                          background: 'rgba(255,214,10,0.18)',
+                          border: '1px solid #FFD60A',
+                          color: '#FFD60A',
+                          boxShadow: '0 0 16px rgba(255,214,10,0.25)',
+                        } : {
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.14)',
+                          color: 'rgba(255,255,255,0.7)',
+                        }),
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(0.97)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                      onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
+                      onMouseUp={e => e.currentTarget.style.transform = 'scale(0.97)'}
+                    >
+                      <IconReset />
+                      {enRepaso ? 'En repaso ✓' : 'Repasar'}
+                    </button>
+
+                    {/* Aleatoria */}
+                    <button
+                      onClick={sacarAleatoria}
+                      disabled={restantes === 0}
+                      style={{
+                        flex: 1, height: 50, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', gap: 7,
+                        borderRadius: 9999, cursor: restantes === 0 ? 'not-allowed' : 'pointer',
+                        border: 'none', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                        color: '#fff', opacity: restantes === 0 ? 0.3 : 1,
+                        background: ACCENT, boxShadow: ACCENT_SHADOW,
+                        transition: 'transform 0.12s ease',
+                      }}
+                      onMouseEnter={e => { if (restantes > 0) e.currentTarget.style.transform = 'scale(0.97)'; }}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                      onMouseDown={e => { if (restantes > 0) e.currentTarget.style.transform = 'scale(0.94)'; }}
+                      onMouseUp={e => { if (restantes > 0) e.currentTarget.style.transform = 'scale(0.97)'; }}
+                    >
+                      <IconShuffle />
+                      Aleatoria
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <GlassBtn
+                onClick={siguiente}
+                disabled={restantes === 0 && posicion === historial.length - 1}
+                style={{ width: 50, height: 50, flexShrink: 0, borderRadius: 9999 }}
+              >
+                <IconChevRight />
+              </GlassBtn>
+            </div>
+          </div>
+        ) : completado ? (
+          /* ── Completed screen ── */
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(40px)',
+            borderRadius: 28,
+            padding: '52px 24px',
+            textAlign: 'center',
+            marginBottom: 24,
+          }}>
+            <div style={{ fontSize: 44, marginBottom: 12 }}>🎉</div>
+            <p style={{
+              fontSize: 22, fontWeight: 700, marginBottom: 8,
+              background: ACCENT,
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>¡Completado!</p>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginBottom: 28 }}>
+              Has visto las {preguntas.length} preguntas
+            </p>
+            <GlassBtn onClick={reiniciar} style={{ height: 44, paddingInline: 24, margin: '0 auto' }}>
+              <IconReset /> Reiniciar
+            </GlassBtn>
+          </div>
+        ) : (
+          /* ── Start screen ── */
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: 12, marginBottom: 24,
+          }}>
+            <GlassBtn
+              onClick={sacarAleatoria}
+              accent={true}
+              style={{ height: 56, paddingInline: 36, fontSize: 16 }}
+            >
+              <IconShuffle />
+              Pregunta aleatoria
+            </GlassBtn>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)' }}>
+              o toca un número abajo
+            </span>
+          </div>
+        )}
+
+        {/* Question grid */}
+        <div style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(30px)',
+          borderRadius: 24,
+          padding: '20px 18px',
+        }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 16, paddingInline: 2,
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>
+              Preguntas
+            </span>
+            {(tachados.size > 0 || repaso.size > 0) && (
+              <button
+                onClick={reiniciar}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: 500,
+                  display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit',
+                  padding: '2px 0',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.38)'}
+              >
+                <IconReset /> Reiniciar
+              </button>
+            )}
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))',
+            gap: 6,
+          }}>
+            {preguntas.map((p) => {
+              const visto  = tachados.has(p.n);
+              const enRep  = repaso.has(p.n);
+              const esActual = actual?.n === p.n;
+              return (
+                <button
+                  key={p.n}
+                  onClick={() => irAPregunta(p.n)}
+                  style={{
+                    aspectRatio: '1',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 600,
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'transform 0.1s ease',
+                    ...(esActual ? {
+                      background: ACCENT,
+                      color: '#fff',
+                      boxShadow: '0 0 16px rgba(175,82,222,0.55)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                    } : enRep ? {
+                      background: 'rgba(255,214,10,0.15)',
+                      color: '#FFD60A',
+                      border: '1px solid rgba(255,214,10,0.4)',
+                      boxShadow: '0 0 8px rgba(255,214,10,0.2)',
+                    } : visto ? {
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'rgba(255,255,255,0.2)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      textDecoration: 'line-through',
+                    } : {
+                      background: 'rgba(255,255,255,0.07)',
+                      color: 'rgba(255,255,255,0.75)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }),
+                  }}
+                  onMouseEnter={e => { if (!esActual) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                  onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.93)'; }}
+                  onMouseUp={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
+                >
+                  {p.n}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer hint */}
+        <p style={{ textAlign: 'center', marginTop: 28, fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.05em' }}>
+          ← → navegar · espacio revelar
+        </p>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
